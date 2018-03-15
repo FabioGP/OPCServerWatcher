@@ -13,6 +13,7 @@ using OPCServerWatcher.Classes;
 using System.Threading;
 using OPCDA.NET;
 using OPC;
+using System.Diagnostics;
 
 namespace OPCServerWatcher
 {
@@ -188,6 +189,13 @@ namespace OPCServerWatcher
             case OPCDA.OpcServerState.Failed:
               tbOpcSrvDiagnostic.BackColor = Color.Red;
               tbOpcSrvDiagnostic.ForeColor = Color.White;
+
+              while (OPCServerProcessIsRunning())
+              {
+                KillWindowsProcess();
+                Thread.Sleep(1000);
+              }
+
               break;
             case OPCDA.OpcServerState.NoConfig:
               tbOpcSrvDiagnostic.BackColor = Color.White;
@@ -200,6 +208,13 @@ namespace OPCServerWatcher
             case OPCDA.OpcServerState.Suspended:
               tbOpcSrvDiagnostic.BackColor = Color.Yellow;
               tbOpcSrvDiagnostic.ForeColor = Color.Black;
+
+              while (OPCServerProcessIsRunning())
+              {
+                KillWindowsProcess();
+                Thread.Sleep(1000);
+              }
+
               break;
             case OPCDA.OpcServerState.Test:
               tbOpcSrvDiagnostic.BackColor = Color.LightBlue;
@@ -230,6 +245,46 @@ namespace OPCServerWatcher
       {
         tbOpcSrvMonitoringStatus.Text = theOPCMonitorStatus.ToString();
         tbOpcSrvDiagnostic.Text = theOPCServerDiagnostic;
+      }
+    }
+
+    /// <summary>
+    /// Function that returns if the process is running or not
+    /// </summary>
+    /// <returns></returns>
+    public bool OPCServerProcessIsRunning()
+    {
+      bool fResult = false;
+      try
+      {
+        foreach (Process proc in Process.GetProcessesByName(theOPCServerProcessName))
+        {
+          fResult = true;
+          break;
+        }
+      }
+      catch
+      {
+        //Nothing to do
+      }
+      return fResult;
+    }
+
+    /// <summary>
+    /// Function that Kill the current OPC Process
+    /// </summary>
+    public void  KillWindowsProcess()
+    {
+      try
+      {
+        foreach (Process proc in Process.GetProcessesByName(theOPCServerProcessName))
+        {
+          proc.Kill();
+        }
+      }
+      catch (Exception ex)
+      {
+        //Nothing to do
       }
     }
 
