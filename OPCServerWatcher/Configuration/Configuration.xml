@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<configuration>
+  <opcservertype>SoftingS7</opcservertype>
+  <opctopicname>Softing.OPC.S7.DA.1</opctopicname>
+  <opcprocessname>S7OPCsvc</opcprocessname>
+  <monitoringcycle>1000</monitoringcycle>
+</configuration>
