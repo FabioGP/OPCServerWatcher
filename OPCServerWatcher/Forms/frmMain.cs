@@ -396,16 +396,20 @@ namespace OPCServerWatcher
         newWriter.WriteStartDocument();
         newWriter.WriteStartElement("configuration");
 
-        newWriter.WriteStartElement("opcservertype", theOPCServerType.ToString());
+        newWriter.WriteStartElement("opcservertype");
+        newWriter.WriteValue(theOPCServerType.ToString());
         newWriter.WriteEndElement();
 
-        newWriter.WriteStartElement("opctopicname", theOPCServerTopic.ToString());
+        newWriter.WriteStartElement("opctopicname");
+        newWriter.WriteValue(theOPCServerTopic.ToString());
         newWriter.WriteEndElement();
 
-        newWriter.WriteStartElement("opcprocessname", theOPCServerProcessName.ToString());
+        newWriter.WriteStartElement("opcprocessname");
+        newWriter.WriteValue(theOPCServerProcessName.ToString());
         newWriter.WriteEndElement();
 
-        newWriter.WriteStartElement("monitoringcycle", theCycleTime.ToString());
+        newWriter.WriteStartElement("monitoringcycle");
+        newWriter.WriteValue(theCycleTime.ToString());
         newWriter.WriteEndElement();
 
         newWriter.WriteEndElement();
