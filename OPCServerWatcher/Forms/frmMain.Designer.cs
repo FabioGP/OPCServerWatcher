@@ -160,7 +160,7 @@
       this.lblKeepAliveConfigStatus.Name = "lblKeepAliveConfigStatus";
       this.lblKeepAliveConfigStatus.Size = new System.Drawing.Size(172, 24);
       this.lblKeepAliveConfigStatus.TabIndex = 25;
-      this.lblKeepAliveConfigStatus.Text = "Configuration Status";
+      this.lblKeepAliveConfigStatus.Text = "Auto-Restart by Server State";
       this.lblKeepAliveConfigStatus.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
       // 
       // tbOpcSrvDiagnostic
@@ -318,7 +318,7 @@
       this.lblSchedulerConfigStatus.Name = "lblSchedulerConfigStatus";
       this.lblSchedulerConfigStatus.Size = new System.Drawing.Size(172, 24);
       this.lblSchedulerConfigStatus.TabIndex = 25;
-      this.lblSchedulerConfigStatus.Text = "Configuration Status";
+      this.lblSchedulerConfigStatus.Text = "Scheduler Enabled";
       this.lblSchedulerConfigStatus.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
       // 
       // tbSchedulerTimeConfigured
@@ -348,7 +348,7 @@
       this.AutoScroll = true;
       this.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
       this.BackColor = System.Drawing.Color.WhiteSmoke;
-      this.ClientSize = new System.Drawing.Size(426, 357);
+      this.ClientSize = new System.Drawing.Size(426, 362);
       this.Controls.Add(this.groupBox1);
       this.Controls.Add(this.gbKeepAliveMonitor);
       this.Controls.Add(this.menuStrip1);
