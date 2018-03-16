@@ -33,6 +33,11 @@ namespace OPCServerWatcher
     int theCycleTime;
     bool theStopFlag = false;
     Thread theThreadMonitor;
+    bool theKeepAliveMonitorIsEnabled;
+
+    bool theSchedulerIsEnabled;
+    DateTime theSchedulerTime;
+    DateTime theLastRestartTime;
 
     string strRuntimePath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
     string strConfigurationFile = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) + "\\Configuration\\Configuration.xml";
@@ -114,6 +119,34 @@ namespace OPCServerWatcher
         OPCDA.SERVERSTATUS curOPCSrvStatus;
         cResult = theOPCServer.Connect(theOPCServerTopic);
 
+        if (theKeepAliveMonitorIsEnabled)
+        {
+          tbKeepAliveConfigStatus.BackColor = Color.DarkGreen;
+          tbKeepAliveConfigStatus.ForeColor = Color.White;
+          tbKeepAliveConfigStatus.Text = "Enabled";
+        }
+        else
+        {
+          tbKeepAliveConfigStatus.BackColor = Color.LightGray;
+          tbKeepAliveConfigStatus.ForeColor = Color.DarkGray;
+          tbKeepAliveConfigStatus.Text = "Disabled";
+        }
+
+        if (theSchedulerIsEnabled)
+        {
+          tbSchedulerConfigStatus.BackColor = Color.DarkGreen;
+          tbSchedulerConfigStatus.ForeColor = Color.White;
+          tbSchedulerConfigStatus.Text = "Enabled";
+          tbSchedulerTimeConfigured.Text = theSchedulerTime.TimeOfDay.ToString();
+        }
+        else
+        {
+          tbSchedulerConfigStatus.BackColor = Color.LightGray;
+          tbSchedulerConfigStatus.ForeColor = Color.DarkGray;
+          tbSchedulerConfigStatus.Text = "Disabled";
+          tbSchedulerTimeConfigured.Text = "";
+        }
+
         switch (cResult)
         {
           case HRESULTS.E_FAIL:
@@ -175,27 +208,54 @@ namespace OPCServerWatcher
             tbOpcSrvMonitoringStatus.ForeColor = Color.Black;
             break;
           default:
-            tbOpcSrvMonitoringStatus.BackColor = Color.Gray;
+            tbOpcSrvMonitoringStatus.BackColor = Color.LightGray;
             tbOpcSrvMonitoringStatus.ForeColor = Color.Black;
             break;
         }
 
+        if (theSchedulerIsEnabled == true && 
+            DateTime.Now.TimeOfDay >= theSchedulerTime.TimeOfDay &&
+            DateTime.Now.Day > theLastRestartTime.Day)
+        {
+          while (OPCServerProcessIsRunning())
+          {
+            KillWindowsProcess();
+            Thread.Sleep(1000);
+          }
+          theLastRestartTime = DateTime.Now;
+        }
+
+
         if (theOPCServer != null && theOPCServer.isConnectedDA)
         {
           theOPCServer.GetStatus(out curOPCSrvStatus);
-          theOPCServerDiagnostic = curOPCSrvStatus.eServerState.ToString();
+          if (curOPCSrvStatus.eServerState.ToString() == "0") { theOPCServerDiagnostic = "License Expired"; } else { theOPCServerDiagnostic = curOPCSrvStatus.eServerState.ToString(); }
           switch (curOPCSrvStatus.eServerState)
           {
             case OPCDA.OpcServerState.Failed:
               tbOpcSrvDiagnostic.BackColor = Color.Red;
               tbOpcSrvDiagnostic.ForeColor = Color.White;
-
-              while (OPCServerProcessIsRunning())
+              if (theKeepAliveMonitorIsEnabled)
               {
-                KillWindowsProcess();
-                Thread.Sleep(1000);
+                while (OPCServerProcessIsRunning())
+                {
+                  KillWindowsProcess();
+                  Thread.Sleep(1000);
+                }
               }
+              break;
+            case OPCDA.OpcServerState.Suspended:
+              tbOpcSrvDiagnostic.BackColor = Color.Yellow;
+              tbOpcSrvDiagnostic.ForeColor = Color.Black;
 
+              if (theKeepAliveMonitorIsEnabled)
+              {
+                while (OPCServerProcessIsRunning())
+                {
+                  KillWindowsProcess();
+                  Thread.Sleep(1000);
+                }
+              }
               break;
             case OPCDA.OpcServerState.NoConfig:
               tbOpcSrvDiagnostic.BackColor = Color.White;
@@ -205,30 +265,29 @@ namespace OPCServerWatcher
               tbOpcSrvDiagnostic.BackColor = Color.DarkGreen;
               tbOpcSrvDiagnostic.ForeColor = Color.White;
               break;
-            case OPCDA.OpcServerState.Suspended:
-              tbOpcSrvDiagnostic.BackColor = Color.Yellow;
-              tbOpcSrvDiagnostic.ForeColor = Color.Black;
-
-              while (OPCServerProcessIsRunning())
-              {
-                KillWindowsProcess();
-                Thread.Sleep(1000);
-              }
-
-              break;
             case OPCDA.OpcServerState.Test:
               tbOpcSrvDiagnostic.BackColor = Color.LightBlue;
               tbOpcSrvDiagnostic.ForeColor = Color.Black;
               break;
             default:
-              tbOpcSrvDiagnostic.BackColor = Color.Transparent;
-              tbOpcSrvDiagnostic.ForeColor = Color.DarkGray;
+              tbOpcSrvDiagnostic.BackColor = Color.Yellow;
+              tbOpcSrvDiagnostic.ForeColor = Color.Black;
+
+              if (theKeepAliveMonitorIsEnabled)
+              {
+                while (OPCServerProcessIsRunning())
+                {
+                  KillWindowsProcess();
+                  Thread.Sleep(1000);
+                }
+              }
+
               break;
           }
         }
         else
         {
-          tbOpcSrvDiagnostic.BackColor = Color.Transparent;
+          tbOpcSrvDiagnostic.BackColor = Color.Gainsboro;
           tbOpcSrvDiagnostic.ForeColor = Color.DarkGray;
         }
 
@@ -319,25 +378,89 @@ namespace OPCServerWatcher
     /// <summary>
     /// Configuration wizard to support the user on OPC setup
     /// </summary>
-    private void ConfigurationWizard()
+    private void ConfigurationWizardKeepAliveMonitor()
     {
       ///Variable that store the user input
       string userInput = "";
+
+      string defaultEnable = "";
+      if (theKeepAliveMonitorIsEnabled) { defaultEnable = "Yes"; } else { defaultEnable = "No"; }
+      ///Request if the keep alive monitor will be enabled
+      userInput = UserDecision.ShowInputComboBox(defaultEnable, "Enable auto-restart by server state?", new string[] { "Yes", "No" });
+      if (userInput == "") { MessageBox.Show("This value cannot be empty..."); return; };
+      switch (userInput)
+      {
+        case "Yes":
+          theKeepAliveMonitorIsEnabled = true;
+          break;
+        case "No":
+          theKeepAliveMonitorIsEnabled = false;
+          break;
+        default:
+          theKeepAliveMonitorIsEnabled = false;
+          MessageBox.Show("Invalid value!");
+          return;
+      }
+      userInput = "";
 
       ///Request the OPC Type
       userInput = UserDecision.ShowInputComboBox(theOPCServerType.ToString(), "Input the OPC server type",new string[] {eOPCServerType.DataFEED.ToString(), eOPCServerType.INAT.ToString(), eOPCServerType.KEPWare.ToString(), eOPCServerType.RsLinx.ToString(), eOPCServerType.SoftingS7.ToString() });
       if (userInput == "") { MessageBox.Show("This value cannot be empty..."); return; };
       theOPCServerType = (eOPCServerType)Enum.Parse(typeof(eOPCServerType), userInput);
       userInput = "";
-      
+
       ///Request the OPC topic (address)
-      userInput = UserDecision.ShowInputString(theOPCServerTopic, "Input the OPC topic (address)");
+      string defaultTopicConfig;
+      switch (theOPCServerType)
+      {
+        case eOPCServerType.DataFEED:
+          defaultTopicConfig = "Softing.OPC.DF.S7.DA.1";
+          break;
+        case eOPCServerType.INAT:
+          defaultTopicConfig = "INAT TcpIpH1 OPC Server";
+          break;
+        case eOPCServerType.KEPWare:
+          defaultTopicConfig = "";
+          break;
+        case eOPCServerType.RsLinx:
+          defaultTopicConfig = "RsLinx OPC Server";
+          break;
+        case eOPCServerType.SoftingS7:
+          defaultTopicConfig = "Softing.OPC.S7.DA.1";
+          break;
+        default:
+          defaultTopicConfig = "";
+          break;
+      }
+      userInput = UserDecision.ShowInputString(defaultTopicConfig, "Input the OPC topic (address)");
       if (userInput == "") { MessageBox.Show("This value cannot be empty..."); return; };
       theOPCServerTopic = userInput;
       userInput = "";
 
       ///Request the process name
-      userInput = UserDecision.ShowInputString(theOPCServerProcessName, "Input the name of OPC process (Windows)");
+      string defaultProcessName;
+      switch (theOPCServerType)
+      {
+        case eOPCServerType.DataFEED:
+          defaultProcessName = "OSF_Service";
+          break;
+        case eOPCServerType.INAT:
+          defaultProcessName = "TCPIPH1";
+          break;
+        case eOPCServerType.KEPWare:
+          defaultProcessName = "";
+          break;
+        case eOPCServerType.RsLinx:
+          defaultProcessName = "RSLINX";
+          break;
+        case eOPCServerType.SoftingS7:
+          defaultProcessName = "S7OPCsvc";
+          break;
+        default:
+          defaultProcessName = "";
+          break;
+      }
+      userInput = UserDecision.ShowInputString(defaultProcessName, "Input the name of OPC process (Windows)");
       if (userInput == "") { MessageBox.Show("This value cannot be empty..."); return; };
       theOPCServerProcessName = userInput;
       userInput = "";
@@ -348,6 +471,44 @@ namespace OPCServerWatcher
       if (userInput == "") { MessageBox.Show("This value cannot be empty..."); return; };
       if (int.TryParse(userInput, out newCycleTimer) == false) { MessageBox.Show("Input value was not valid. Please use just numbers..."); return; };
       theCycleTime = newCycleTimer;
+      userInput = "";
+
+      //Save the new configurtaion and restart the application.
+      GenerateConfigurationFile();
+    }
+
+    /// <summary>
+    /// Configuration wizard to support the user on scheduler configuration
+    /// </summary>
+    private void ConfigurationWizardScheduler()
+    {
+      ///Variable that store the user input
+      string userInput = "";
+
+      string defaultEnable = "";
+      if (theSchedulerIsEnabled) { defaultEnable = "Yes"; } else { defaultEnable = "No"; }
+      ///Request if the scheduler will be enabled
+        userInput = UserDecision.ShowInputComboBox(defaultEnable, "Enable scheduler?", new string[] { "Yes", "No"});
+      if (userInput == "") { MessageBox.Show("This value cannot be empty..."); return; };
+      switch (userInput)
+      {
+        case "Yes":
+          theSchedulerIsEnabled = true;
+          break;
+        case "No":
+          theSchedulerIsEnabled = false;
+          break;
+        default:
+          theSchedulerIsEnabled = false;
+          MessageBox.Show("Invalid value!");
+          return;
+      }
+      userInput = "";
+
+      ///Request the OPC topic (address)
+      DateTime newUserDate;
+      newUserDate = UserDecision.ShowTimePicker(DateTime.Now.ToString(), "Input the time:");
+      theSchedulerTime = newUserDate;
       userInput = "";
 
       //Save the new configurtaion and restart the application.
@@ -368,18 +529,6 @@ namespace OPCServerWatcher
         iconTrayOPCServerWatcher.Visible = true;
         Hide();
       }
-    }
-
-    /// <summary>
-    /// The user has selected the configuration wizard. So we need to stop the monitor and reconfigure it.
-    /// </summary>
-    /// <param name="sender"></param>
-    /// <param name="e"></param>
-    private void mnStripOptConfigWizard_Click(object sender, EventArgs e)
-    {
-      theStopFlag = true;
-      ConfigurationWizard();
-      PreStartConfig();
     }
 
     /// <summary>
@@ -412,6 +561,18 @@ namespace OPCServerWatcher
         newWriter.WriteValue(theCycleTime.ToString());
         newWriter.WriteEndElement();
 
+        newWriter.WriteStartElement("monitoringenabled");
+        newWriter.WriteValue(theKeepAliveMonitorIsEnabled.ToString());
+        newWriter.WriteEndElement();
+
+        newWriter.WriteStartElement("schedulerenabled");
+        newWriter.WriteValue(theSchedulerIsEnabled.ToString());
+        newWriter.WriteEndElement();
+
+        newWriter.WriteStartElement("schedulertime");
+        newWriter.WriteValue(theSchedulerTime.ToString());
+        newWriter.WriteEndElement();
+
         newWriter.WriteEndElement();
         newWriter.WriteEndDocument();
       }
@@ -442,6 +603,18 @@ namespace OPCServerWatcher
       curNode = configFile.SelectSingleNode("/configuration/monitoringcycle");
       if (curNode != null) { theCycleTime = int.Parse(curNode.InnerText); }
       curNode = null;
+
+      curNode = configFile.SelectSingleNode("/configuration/monitoringenabled");
+      if (curNode != null) { theKeepAliveMonitorIsEnabled = bool.Parse(curNode.InnerText); }
+      curNode = null;
+
+      curNode = configFile.SelectSingleNode("/configuration/schedulerenabled");
+      if (curNode != null) { theSchedulerIsEnabled = bool.Parse(curNode.InnerText); }
+      curNode = null;
+
+      curNode = configFile.SelectSingleNode("/configuration/schedulertime");
+      if (curNode != null) { theSchedulerTime = DateTime.Parse(curNode.InnerText); }
+      curNode = null;
       configFile = null;
     }
 
@@ -454,6 +627,30 @@ namespace OPCServerWatcher
     {
       WindowState = FormWindowState.Normal;
       Show();
+    }
+
+    /// <summary>
+    /// User has selected the Monitoring Configuration
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
+    private void mnStripOptConfigKeepAlive_Click(object sender, EventArgs e)
+    {
+      theStopFlag = true;
+      ConfigurationWizardKeepAliveMonitor();
+      PreStartConfig();
+    }
+
+    /// <summary>
+    /// User has selected the Scheduler Configuration
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
+    private void mnStripOptConfigScheduler_Click(object sender, EventArgs e)
+    {
+      theStopFlag = true;
+      ConfigurationWizardScheduler();
+      PreStartConfig();
     }
   }
 }

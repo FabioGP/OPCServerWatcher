@@ -84,5 +84,29 @@ namespace OPCServerWatcher.Classes
 
       return prompt.ShowDialog() == DialogResult.OK ? newComboBox.Text : "";
     }
+
+    public static DateTime ShowTimePicker(string defaultvalue, string title)
+    {
+      Form prompt = new Form()
+      {
+        Width = 400,
+        Height = 110,
+        FormBorderStyle = FormBorderStyle.FixedSingle,
+        Text = title,
+        StartPosition = FormStartPosition.CenterScreen
+      };
+      DateTimePicker newDateTimePicker = new DateTimePicker() { Left = 10, Top = 5, Width = 360 };
+      newDateTimePicker.Text = defaultvalue;
+      newDateTimePicker.Format = DateTimePickerFormat.Time;
+      newDateTimePicker.ShowUpDown = true;
+
+      Button confirmation = new Button() { Text = "Ok", Left = 10, Width = 360, Top = 35, DialogResult = DialogResult.OK };
+      confirmation.Click += (sender, e) => { prompt.Close(); };
+      prompt.Controls.Add(newDateTimePicker);
+      prompt.Controls.Add(confirmation);
+      prompt.AcceptButton = confirmation;
+      
+      return prompt.ShowDialog() == DialogResult.OK ? newDateTimePicker.Value : DateTime.Now;
+    }
   }
 }

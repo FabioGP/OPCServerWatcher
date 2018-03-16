@@ -4,4 +4,7 @@
   <opctopicname>Softing.OPC.S7.DA.1</opctopicname>
   <opcprocessname>S7OPCsvc</opcprocessname>
   <monitoringcycle>1000</monitoringcycle>
+  <monitoringenabled>true</monitoringenabled>
+  <schedulerenabled>false</schedulerenabled>
+  <schedulertime>2018-03-16 20:00:00</schedulertime>
 </configuration>
